@@ -7,7 +7,7 @@ import json
 class GPTAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', 'demo_key'))
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-5')
     
     def analyze_clause(self, clause_text: str, legal_context: Dict[str, List[Dict[str, Any]]], clause_id: int) -> ClauseAnalysis:
         """Analyze a single T&C clause against legal context using GPT-5."""
