@@ -2,7 +2,49 @@
 
 A comprehensive web application that analyzes Terms & Conditions documents against Czech legal frameworks to identify potentially unfair, problematic, or illegal clauses.
 
-## Features
+## Available Implementations
+
+🔥 **NEW: Django Version** - Full-featured web application with database persistence
+📋 **Legacy: FastAPI Version** - Simple API-based implementation
+
+## Django Version (Recommended)
+
+The Django implementation provides a complete web application with database persistence, user interface, and advanced features.
+
+### Quick Start (Django)
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set up database
+python manage.py migrate
+
+# Start server
+python manage.py runserver
+
+# Visit http://localhost:8000
+```
+
+**Features:**
+- 📊 **Database Persistence**: All analyses saved permanently
+- 📋 **Analysis History**: Browse and review past analyses
+- 🎯 **Advanced UI**: Clean, responsive web interface
+- ⚖️ **Legal Integration**: Czech Civil Code and Criminal Code analysis
+- 🔒 **Production Ready**: Django framework with security features
+
+See [DJANGO_README.md](DJANGO_README.md) for detailed Django-specific documentation.
+
+## Legacy FastAPI Version
+
+The original FastAPI implementation provides a simple API-based approach.
+
+### Quick Start (FastAPI)
+```bash
+python web_app.py
+# Visit http://localhost:8000
+```
+
+## Core Features (Both Versions)
 
 🔍 **Intelligent Analysis**: Automatically segments T&C documents into individual clauses for detailed analysis
 
@@ -20,79 +62,6 @@ A comprehensive web application that analyzes Terms & Conditions documents again
 - **🟡 Medium**: Potentially problematic clauses requiring attention  
 - **🔴 High**: Likely invalid or unfair clauses
 - **🟣 Critical**: Clauses clearly in conflict with legal requirements
-
-## Quick Start
-
-### Prerequisites
-- Python 3.8+
-- Required packages (see requirements.txt)
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/andreaboss123/termscon.git
-cd termscon
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env to add your GPT-5 API key
-```
-
-### Running the Application
-
-#### Command Line Demo
-```bash
-python main.py
-```
-
-#### Web Application
-```bash
-python web_app.py
-```
-Then open http://localhost:8000 in your browser.
-
-## Usage
-
-### Web Interface
-1. Visit http://localhost:8000
-2. Either paste T&C text or upload a text file
-3. Click "Analyzovat podmínky" (Analyze Terms)
-4. Review the detailed analysis with risk assessments and legal explanations
-
-### Command Line
-The CLI version analyzes sample terms and conditions and outputs detailed results to the terminal.
-
-## Architecture
-
-### Backend Components
-- **Text Processing**: Segments documents into analyzable clauses
-- **Vector Database**: Queries pre-embedded Czech legal codes for relevant context
-- **GPT Analysis**: Performs risk assessment and legal conflict detection
-- **API Endpoints**: FastAPI-based REST API for web interface
-
-### Database Structure
-- `chroma.sqlite3`: ChromaDB with embedded Civil Code (1536-dimensional vectors)
-- `trestni_zakonik.sqlite`: SQLite with Criminal Code paragraphs and embeddings
-
-### Frontend
-- Modern responsive web interface
-- Real-time analysis with loading indicators
-- Interactive results with color-coded risk levels
-- Detailed clause-by-clause breakdown
-
-## API Endpoints
-
-- `GET /`: Main web interface
-- `POST /api/analyze`: Analyze T&C document (form-data with text_content or file)
-- `GET /api/health`: Health check
 
 ## Example Analysis Output
 
@@ -115,26 +84,57 @@ The application analyzes clauses against:
 - **Czech Civil Code**: Consumer protection, contract law, unfair terms
 - **Czech Criminal Code**: Potential criminal violations in T&C clauses
 
-## Development
+## Project Structure
 
-### Project Structure
 ```
 termscon/
-├── backend/
-│   ├── app/           # FastAPI application
-│   ├── database/      # Vector database connections  
-│   ├── models/        # Data models and schemas
-│   └── utils/         # Text processing and analysis utilities
-├── main.py            # CLI demo application
-├── web_app.py         # Web application server
-├── requirements.txt   # Python dependencies
-└── README.md         # This file
+├── termscon_django/          # Django web application (RECOMMENDED)
+│   ├── analyzer/            # Main Django app
+│   ├── settings.py          # Django configuration
+│   └── manage.py           # Django management
+├── templates/              # HTML templates
+├── backend/               # Shared analysis logic
+│   ├── models/           # Data models
+│   └── utils/            # Text processing & analysis
+├── main.py               # CLI demo application
+├── web_app.py            # Legacy FastAPI application
+├── requirements.txt      # Dependencies
+├── README.md            # This file
+└── DJANGO_README.md     # Django-specific documentation
 ```
 
-### Adding New Features
-- Extend `SimpleGPTAnalyzer` for additional analysis capabilities
-- Modify `SimpleTextProcessor` for better clause segmentation
-- Add new risk assessment criteria in the analysis logic
+## Testing
+
+Both implementations include comprehensive testing:
+
+```bash
+# Test core analysis functionality
+python test_analysis.py
+
+# Django-specific tests
+python manage.py test
+```
+
+## Database Structure (Django Version)
+
+The Django version includes persistent storage:
+- **AnalysisSession**: Stores overall analysis results
+- **ClauseAnalysisResult**: Stores individual clause analyses
+- Built-in Django admin interface for data management
+
+## API Endpoints
+
+### Django Version
+- `GET /`: Main web interface
+- `POST /api/analyze/`: Analyze document
+- `GET /history/`: Analysis history
+- `GET /analysis/<uuid>/`: Detailed analysis view
+- `GET /admin/`: Django admin interface
+
+### FastAPI Version (Legacy)
+- `GET /`: Web interface
+- `POST /api/analyze`: Analyze document
+- `GET /api/health`: Health check
 
 ## Limitations (Demo Version)
 
@@ -144,6 +144,24 @@ termscon/
 - **Vector Search**: Simplified mock implementation for legal context retrieval
 
 ## Production Deployment
+
+### Django Version (Recommended)
+```bash
+# Set up production database
+python manage.py migrate --settings=production_settings
+
+# Collect static files
+python manage.py collectstatic
+
+# Run with gunicorn
+gunicorn termscon_django.wsgi:application
+```
+
+### FastAPI Version
+```bash
+# Run with uvicorn
+uvicorn web_app:app --host 0.0.0.0 --port 8000
+```
 
 For production use:
 1. Add real GPT-5 API integration

@@ -1,0 +1,54 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Historie analýz - Analýza obchodních podmínek{% endblock %}
+{% block header %}Historie analýz{% endblock %}
+
+{% block content %}
+<div>
+    <h2>📋 Posledních 20 analýz</h2>
+    
+    {% if sessions %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Soubor</th>
+                    <th>Klauzule</th>
+                    <th>Celkové riziko</th>
+                    <th>Vysoké riziko</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ session.original_filename }}</td>
+                    <td>{{ session.total_clauses }}</td>
+                    <td>
+                        {% if session.overall_risk_score == 'Low' %}
+                            <span class="risk-badge risk-low">Nízké</span>
+                        {% elif session.overall_risk_score == 'Medium' %}
+                            <span class="risk-badge risk-medium">Střední</span>
+                        {% elif session.overall_risk_score == 'High' %}
+                            <span class="risk-badge risk-high">Vysoké</span>
+                        {% else %}
+                            <span class="risk-badge risk-critical">Kritické</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ session.high_risk_count }}</td>
+                    <td>
+                        <a href="{% url 'termscon_django.analyzer:detail' session.id %}" style="color: #3498db; text-decoration: none;">
+                            🔍 Zobrazit detail
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Zatím nejsou k dispozici žádné analýzy.</p>
+        <p><a href="{% url 'termscon_django.analyzer:home' %}">Vytvořit první analýzu</a></p>
+    {% endif %}
+</div>
+{% endblock %}

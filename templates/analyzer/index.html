@@ -1,0 +1,176 @@
+{% extends 'analyzer/base.html' %}
+
+{% block content %}
+<div class="upload-area">
+    <p><strong>Vložte text obchodních podmínek</strong></p>
+    <textarea id="textInput" placeholder="Vložte zde text obchodních podmínek, které chcete analyzovat..."></textarea>
+    <p>nebo</p>
+    <input type="file" id="fileInput" accept=".txt,.pdf,.docx" style="margin: 10px;">
+</div>
+
+<div style="text-align: center;">
+    <button onclick="analyzeText()">🔍 Analyzovat podmínky</button>
+    <button onclick="loadSample()">📄 Načíst vzorové podmínky</button>
+</div>
+
+<div class="loader" id="loader"></div>
+
+<div class="results" id="results">
+    <h2>📊 Výsledky analýzy</h2>
+    <div id="resultsContent"></div>
+</div>
+
+<script>
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    function loadSample() {
+        document.getElementById('textInput').value = `1. Uživatelské podmínky
+Tyto podmínky se vztahují na všechny uživatele naší služby. Vyhrazujeme si právo kdykoli změnit tyto podmínky bez předchozího upozornění.
+
+2. Odpovědnost
+Společnost se zprošťuje veškeré odpovědnosti za škody způsobené užíváním služby. Uživatel používá službu na vlastní riziko.
+
+3. Ochrana dat
+Vaše osobní údaje zpracováváme v souladu s GDPR. Snažíme se zajistit maximální bezpečnost vašich dat.
+
+4. Ukončení služby
+Službu můžeme kdykoli ukončit podle našeho uvážení. V případě ukončení nebudou vráceny žádné poplatky.`;
+    }
+
+    function getRiskBadge(riskLevel) {
+        const classes = {
+            'Low': 'risk-low',
+            'Medium': 'risk-medium', 
+            'High': 'risk-high',
+            'Critical': 'risk-critical'
+        };
+        const labels = {
+            'Low': 'Nízké',
+            'Medium': 'Střední',
+            'High': 'Vysoké', 
+            'Critical': 'Kritické'
+        };
+        return `<span class="risk-badge ${classes[riskLevel]}">${labels[riskLevel]} riziko</span>`;
+    }
+
+    async function analyzeText() {
+        const textInput = document.getElementById('textInput');
+        const fileInput = document.getElementById('fileInput');
+        const loader = document.getElementById('loader');
+        const results = document.getElementById('results');
+        
+        let textContent = textInput.value.trim();
+        
+        if (!textContent && !fileInput.files.length) {
+            alert('Prosím vložte text nebo vyberte soubor k analýze.');
+            return;
+        }
+        
+        loader.style.display = 'block';
+        results.style.display = 'none';
+        
+        try {
+            const formData = new FormData();
+            
+            if (fileInput.files.length > 0) {
+                formData.append('file', fileInput.files[0]);
+            } else {
+                formData.append('text_content', textContent);
+            }
+            
+            const response = await fetch('{% url "termscon_django.analyzer:analyze" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            displayResults(data);
+            
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Chyba při analýze: ' + error.message);
+        } finally {
+            loader.style.display = 'none';
+        }
+    }
+    
+    function displayResults(data) {
+        const resultsContent = document.getElementById('resultsContent');
+        const results = document.getElementById('results');
+        
+        const summary = data.overall_summary;
+        
+        let html = `
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <div class="stat-number">${summary.total_clauses}</div>
+                    <div>Celkem klauzulí</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${summary.high_risk_count}</div>
+                    <div>Vysoké riziko</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${summary.medium_risk_count}</div>
+                    <div>Střední riziko</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${summary.low_risk_count}</div>
+                    <div>Nízké riziko</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <h3>Celkové hodnocení: ${getRiskBadge(summary.overall_risk_score)}</h3>
+                <p><strong>${summary.overview}</strong></p>
+            </div>
+            
+            <h3>📋 Detailní analýza klauzulí</h3>
+        `;
+        
+        data.clause_analyses.forEach(clause => {
+            const riskClass = clause.risk_level.toLowerCase() + '-risk';
+            html += `
+                <div class="clause ${riskClass}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong>Klauzule ${clause.clause_id}</strong>
+                        ${getRiskBadge(clause.risk_level)}
+                    </div>
+                    <p><strong>Text:</strong> ${clause.original_text.length > 200 ? clause.original_text.substring(0, 200) + '...' : clause.original_text}</p>
+                    <p><strong>💡 Shrnutí:</strong> ${clause.summary}</p>
+                    <p><strong>🔍 Vysvětlení:</strong> ${clause.explanation}</p>
+                    ${clause.legal_conflicts.length > 0 ? `<p><strong>⚖️ Právní konflikty:</strong> ${clause.legal_conflicts.join(', ')}</p>` : ''}
+                    ${clause.relevant_laws.length > 0 ? `<p><strong>📚 Relevantní právní předpisy:</strong> ${clause.relevant_laws.join(', ')}</p>` : ''}
+                </div>
+            `;
+        });
+        
+        resultsContent.innerHTML = html;
+        results.style.display = 'block';
+        results.scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'analyzer/base.html' %}
+
+{% block title %}Detail analýzy - Analýza obchodních podmínek{% endblock %}
+{% block header %}Detail analýzy{% endblock %}
+
+{% block content %}
+<div>
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+        <h2>📊 Přehled analýzy</h2>
+        <p><strong>Soubor:</strong> {{ session.original_filename }}</p>
+        <p><strong>Datum:</strong> {{ session.created_at|date:"d.m.Y H:i" }}</p>
+        <p><strong>ID analýzy:</strong> {{ session.id }}</p>
+        
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-number">{{ session.total_clauses }}</div>
+                <div>Celkem klauzulí</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ session.high_risk_count }}</div>
+                <div>Vysoké riziko</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ session.medium_risk_count }}</div>
+                <div>Střední riziko</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ session.low_risk_count }}</div>
+                <div>Nízké riziko</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <h3>Celkové hodnocení: 
+                {% if session.overall_risk_score == 'Low' %}
+                    <span class="risk-badge risk-low">Nízké riziko</span>
+                {% elif session.overall_risk_score == 'Medium' %}
+                    <span class="risk-badge risk-medium">Střední riziko</span>
+                {% elif session.overall_risk_score == 'High' %}
+                    <span class="risk-badge risk-high">Vysoké riziko</span>
+                {% else %}
+                    <span class="risk-badge risk-critical">Kritické riziko</span>
+                {% endif %}
+            </h3>
+            <p><strong>{{ session.overview }}</strong></p>
+        </div>
+    </div>
+    
+    <h3>📋 Detailní analýza klauzulí</h3>
+    
+    {% for clause in clauses %}
+        <div class="clause {% if clause.risk_level == 'Low' %}low-risk{% elif clause.risk_level == 'Medium' %}medium-risk{% elif clause.risk_level == 'High' %}high-risk{% else %}critical-risk{% endif %}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong>Klauzule {{ clause.clause_id }}</strong>
+                {% if clause.risk_level == 'Low' %}
+                    <span class="risk-badge risk-low">Nízké riziko</span>
+                {% elif clause.risk_level == 'Medium' %}
+                    <span class="risk-badge risk-medium">Střední riziko</span>
+                {% elif clause.risk_level == 'High' %}
+                    <span class="risk-badge risk-high">Vysoké riziko</span>
+                {% else %}
+                    <span class="risk-badge risk-critical">Kritické riziko</span>
+                {% endif %}
+            </div>
+            <p><strong>Text:</strong> {{ clause.original_text }}</p>
+            <p><strong>💡 Shrnutí:</strong> {{ clause.summary }}</p>
+            <p><strong>🔍 Vysvětlení:</strong> {{ clause.explanation }}</p>
+            {% if clause.legal_conflicts %}
+                <p><strong>⚖️ Právní konflikty:</strong> 
+                    {% for conflict in clause.legal_conflicts %}
+                        {{ conflict }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            {% endif %}
+            {% if clause.relevant_laws %}
+                <p><strong>📚 Relevantní právní předpisy:</strong> 
+                    {% for law in clause.relevant_laws %}
+                        {{ law }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </p>
+            {% endif %}
+        </div>
+    {% endfor %}
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="{% url 'termscon_django.analyzer:home' %}" style="display: inline-block; padding: 12px 30px; background-color: #3498db; color: white; text-decoration: none; border-radius: 5px;">
+            🔙 Zpět na hlavní stránku
+        </a>
+    </div>
+</div>
+{% endblock %}
