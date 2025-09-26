@@ -61,7 +61,7 @@ class GPTAnalyzer:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=1000
+                max_completion_tokens=1000
             )
             
             content = response.choices[0].message.content.strip()
@@ -137,7 +137,7 @@ class GPTAnalyzer:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=300
+                max_completion_tokens=300
             )
             
             return response.choices[0].message.content.strip()

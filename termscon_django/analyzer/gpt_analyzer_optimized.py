@@ -55,7 +55,7 @@ Odpověz JSON:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,
-                max_tokens=400  # Reduced from 1000
+                max_completion_tokens=400  # Reduced from 1000
             )
             
             content = response.choices[0].message.content.strip()
@@ -142,7 +142,7 @@ Vytvoř krátké shrnutí (max 100 slov):"""
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=150  # Very limited for cost efficiency
+                max_completion_tokens=150  # Very limited for cost efficiency
             )
             
             return response.choices[0].message.content.strip()[:300]  # Limit length
