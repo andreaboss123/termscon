@@ -7,7 +7,7 @@ import json
 class GPTAnalyzer:
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', 'demo_key'))
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-5')
     
     def analyze_clause(self, clause_text: str, legal_context: Dict[str, List[Dict[str, Any]]], clause_id: int) -> ClauseAnalysis:
         """Analyze a single T&C clause against legal context using GPT-5."""
@@ -60,8 +60,7 @@ class GPTAnalyzer:
                     {"role": "system", "content": "Jsi právní expert specializující se na české právo a analýzu obchodních podmínek. Odpovídáš pouze v JSON formátu."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=1000
+                max_completion_tokens=1000
             )
             
             content = response.choices[0].message.content.strip()
@@ -136,8 +135,7 @@ class GPTAnalyzer:
                     {"role": "system", "content": "Jsi právní expert. Poskytni stručné a srozumitelné shrnutí pro běžného uživatele."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=300
+                max_completion_tokens=300
             )
             
             return response.choices[0].message.content.strip()

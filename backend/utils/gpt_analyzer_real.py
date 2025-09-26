@@ -67,8 +67,7 @@ class RealGPTAnalyzer:
                     {"role": "system", "content": "Jsi právní expert specializující se na české právo a analýzu obchodních podmínek. Odpovídáš pouze v JSON formátu."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=1000
+                max_completion_tokens=1000
             )
             
             content = response.choices[0].message.content.strip()
@@ -180,8 +179,7 @@ class RealGPTAnalyzer:
                     {"role": "system", "content": "Jsi právní expert. Poskytni stručné a srozumitelné shrnutí pro běžného uživatele."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=300
+                max_completion_tokens=300
             )
             
             return response.choices[0].message.content.strip()
