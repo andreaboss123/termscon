@@ -63,10 +63,32 @@ class RealVectorDB:
                 return False
             
             # Test file accessibility
+            if not os.path.isabs(self.chroma_db_path):
+                # Convert relative path to absolute
+                self.chroma_db_path = os.path.abspath(self.chroma_db_path)
+            
             chroma_dir = os.path.dirname(self.chroma_db_path)
+            print(f"Looking for ChromaDB directory at: {chroma_dir}")
+            
             if not os.path.exists(chroma_dir):
                 print(f"ChromaDB directory not found: {chroma_dir}")
-                return False
+                # Try alternative paths
+                alternative_dirs = [
+                    os.getcwd(),
+                    os.path.dirname(__file__) + '/../..',
+                    '.'
+                ]
+                
+                for alt_dir in alternative_dirs:
+                    alt_abs_dir = os.path.abspath(alt_dir)
+                    print(f"Trying alternative ChromaDB directory: {alt_abs_dir}")
+                    if os.path.exists(alt_abs_dir):
+                        chroma_dir = alt_abs_dir
+                        print(f"Using ChromaDB directory: {chroma_dir}")
+                        break
+                else:
+                    print("No suitable ChromaDB directory found")
+                    return False
                 
             if not os.access(chroma_dir, os.R_OK):
                 print(f"ChromaDB directory not accessible: {chroma_dir}")
@@ -166,10 +188,33 @@ class RealVectorDB:
         print("Attempting to load Criminal Code embeddings from SQLite...")
         
         try:
+            # Ensure we're using absolute paths and check existence
+            if not os.path.isabs(self.criminal_db_path):
+                # Convert relative path to absolute
+                self.criminal_db_path = os.path.abspath(self.criminal_db_path)
+            
+            print(f"Looking for Criminal Code database at: {self.criminal_db_path}")
+            
             # Test file accessibility first
             if not os.path.exists(self.criminal_db_path):
                 print(f"Criminal Code database file not found: {self.criminal_db_path}")
-                return False
+                # Try alternative paths
+                alternative_paths = [
+                    os.path.join(os.getcwd(), 'trestni_zakonik.sqlite'),
+                    os.path.join(os.path.dirname(__file__), '../../trestni_zakonik.sqlite'),
+                    'trestni_zakonik.sqlite'
+                ]
+                
+                for alt_path in alternative_paths:
+                    alt_abs_path = os.path.abspath(alt_path)
+                    print(f"Trying alternative path: {alt_abs_path}")
+                    if os.path.exists(alt_abs_path):
+                        print(f"Found database at alternative path: {alt_abs_path}")
+                        self.criminal_db_path = alt_abs_path
+                        break
+                else:
+                    print("No Criminal Code database found in any location")
+                    return False
                 
             if not os.access(self.criminal_db_path, os.R_OK):
                 print(f"Criminal Code database file not readable: {self.criminal_db_path}")
@@ -272,9 +317,14 @@ class RealVectorDB:
     
     def search_civil_code(self, query_text: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """Search Civil Code embeddings for relevant paragraphs."""
-        if not self.civil_embeddings:
+        # Only try to load if not already loaded and not previously failed
+        if not self.civil_embeddings and not hasattr(self, '_civil_load_failed'):
             if not self._load_civil_code_embeddings():
+                self._civil_load_failed = True  # Mark as failed to avoid repeated attempts
                 return self._fallback_civil_context()
+        
+        if not self.civil_embeddings:
+            return self._fallback_civil_context()
         
         if self.civil_embeddings['embeddings'] is None:
             return self._fallback_civil_context()
@@ -304,9 +354,14 @@ class RealVectorDB:
     
     def search_criminal_code(self, query_text: str, n_results: int = 2) -> List[Dict[str, Any]]:
         """Search Criminal Code embeddings for relevant paragraphs."""
-        if not self.criminal_embeddings:
+        # Only try to load if not already loaded and not previously failed
+        if not self.criminal_embeddings and not hasattr(self, '_criminal_load_failed'):
             if not self._load_criminal_code_embeddings():
+                self._criminal_load_failed = True  # Mark as failed to avoid repeated attempts
                 return self._fallback_criminal_context()
+        
+        if not self.criminal_embeddings:
+            return self._fallback_criminal_context()
         
         if self.criminal_embeddings['embeddings'] is None:
             return self._fallback_criminal_context()
