@@ -4,7 +4,7 @@ A comprehensive web application that analyzes Terms & Conditions documents again
 
 ## Available Implementations
 
-🔥 **NEW: Django Version** - Full-featured web application with database persistence
+🔥 **NEW: Django Version** - Full-featured web application with database persistence and **real OpenAI GPT integration**
 📋 **Legacy: FastAPI Version** - Simple API-based implementation
 
 ## Django Version (Recommended)
@@ -15,6 +15,9 @@ The Django implementation provides a complete web application with database pers
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+
+# Configure OpenAI API (optional but recommended)
+echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
 
 # Set up database
 python manage.py migrate
@@ -30,9 +33,11 @@ python manage.py runserver
 - 📋 **Analysis History**: Browse and review past analyses
 - 🎯 **Advanced UI**: Clean, responsive web interface
 - ⚖️ **Legal Integration**: Czech Civil Code and Criminal Code analysis
+- 🤖 **Real GPT Analysis**: OpenAI API integration for sophisticated legal analysis
 - 🔒 **Production Ready**: Django framework with security features
 
 See [DJANGO_README.md](DJANGO_README.md) for detailed Django-specific documentation.
+See [OPENAI_INTEGRATION.md](OPENAI_INTEGRATION.md) for OpenAI API setup instructions.
 
 ## Legacy FastAPI Version
 
@@ -50,7 +55,7 @@ python web_app.py
 
 ⚖️ **Legal Framework Integration**: Leverages pre-embedded Czech Civil Code and Criminal Code for legal context
 
-🤖 **AI-Powered Assessment**: Uses GPT-5 API (with fallback mock analysis) for risk assessment and legal conflict detection
+🤖 **AI-Powered Assessment**: Uses OpenAI GPT API (with fallback mock analysis) for sophisticated risk assessment and legal conflict detection
 
 📊 **Interactive Dashboard**: User-friendly web interface with color-coded risk levels and detailed explanations
 
@@ -138,10 +143,21 @@ The Django version includes persistent storage:
 
 ## Limitations (Demo Version)
 
-- **Mock Analysis**: Uses pattern-based analysis instead of real GPT-5 integration
+- **OpenAI API Required**: Real analysis requires valid OpenAI API key (falls back to pattern-based mock if not configured)
 - **File Support**: Currently limited to .txt files (PDF/DOCX extraction disabled)
 - **Language**: Optimized for Czech legal framework and language
 - **Vector Search**: Simplified mock implementation for legal context retrieval
+
+## OpenAI API Integration
+
+The application now supports real OpenAI GPT analysis:
+
+- **Setup**: Add `OPENAI_API_KEY=sk-your-key` to `.env` file
+- **Models**: Supports GPT-4, GPT-3.5-turbo, and other OpenAI models
+- **Fallback**: Automatically uses mock analysis if API key not configured
+- **Cost**: Approximately $0.01-0.50 per document depending on size
+
+See [OPENAI_INTEGRATION.md](OPENAI_INTEGRATION.md) for detailed setup instructions.
 
 ## Production Deployment
 
@@ -164,7 +180,7 @@ uvicorn web_app:app --host 0.0.0.0 --port 8000
 ```
 
 For production use:
-1. Add real GPT-5 API integration
+1. Add real OpenAI API integration (now supported - see OPENAI_INTEGRATION.md)
 2. Enable full document format support (PDF, DOCX)
 3. Implement proper vector similarity search
 4. Add user authentication and session management

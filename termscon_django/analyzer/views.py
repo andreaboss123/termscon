@@ -15,7 +15,7 @@ sys.path.insert(0, '/home/runner/work/termscon/termscon')
 
 from .simple_schemas import AnalysisResult, OverallSummary, RiskLevel
 from .text_processing_simple import SimpleTextProcessor  
-from .gpt_analyzer_simple import SimpleGPTAnalyzer
+from .gpt_analyzer_real import RealGPTAnalyzer
 from .models import AnalysisSession, ClauseAnalysisResult
 
 
@@ -58,7 +58,16 @@ class TermsAnalyzer:
         
         self.vector_db = SimplifiedVectorDB(chroma_db_path, criminal_db_path)
         self.text_processor = SimpleTextProcessor()
-        self.gpt_analyzer = SimpleGPTAnalyzer()
+        
+        # Try to use real GPT analyzer, fallback to mock if not configured
+        try:
+            self.gpt_analyzer = RealGPTAnalyzer()
+            print("✅ Using real OpenAI GPT analyzer")
+        except ValueError as e:
+            print(f"⚠️  OpenAI API not configured: {e}")
+            print("📝 Using mock analyzer instead. Set OPENAI_API_KEY environment variable to use real GPT analysis.")
+            from .gpt_analyzer_simple import SimpleGPTAnalyzer
+            self.gpt_analyzer = SimpleGPTAnalyzer()
     
     def analyze_text(self, text_content: str, filename: str = None) -> AnalysisResult:
         """Analyze terms and conditions text."""

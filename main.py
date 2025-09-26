@@ -8,11 +8,23 @@ from typing import Optional, List
 import sqlite3
 import hashlib
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 # Add the project directory to the Python path
 sys.path.insert(0, '/home/runner/work/termscon/termscon')
 
 from backend.models.simple_schemas import AnalysisResult, OverallSummary, RiskLevel
 from backend.utils.text_processing_simple import SimpleTextProcessor
+
+# Try to import real GPT analyzer, fallback to simple if OpenAI not configured
+try:
+    from backend.utils.gpt_analyzer_real import RealGPTAnalyzer
+    USE_REAL_GPT = True
+except ImportError:
+    USE_REAL_GPT = False
+
 from backend.utils.gpt_analyzer_simple import SimpleGPTAnalyzer
 
 class SimplifiedVectorDB:
@@ -54,7 +66,18 @@ class SimpleApp:
             "/home/runner/work/termscon/termscon/trestni_zakonik.sqlite"
         )
         self.text_processor = SimpleTextProcessor()
-        self.gpt_analyzer = SimpleGPTAnalyzer()
+        
+        # Try to use real GPT analyzer, fallback to mock if not configured
+        if USE_REAL_GPT:
+            try:
+                self.gpt_analyzer = RealGPTAnalyzer()
+                print("✅ Using real OpenAI GPT analyzer")
+            except ValueError as e:
+                print(f"⚠️  OpenAI API not configured: {e}")
+                print("📝 Using mock analyzer instead. Set OPENAI_API_KEY environment variable to use real GPT analysis.")
+                self.gpt_analyzer = SimpleGPTAnalyzer()
+        else:
+            self.gpt_analyzer = SimpleGPTAnalyzer()
     
     def analyze_text(self, text_content: str) -> AnalysisResult:
         """Analyze terms and conditions text."""
