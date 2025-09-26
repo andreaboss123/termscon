@@ -54,7 +54,6 @@ Odpověz JSON:
                     {"role": "system", "content": "Právní expert. Odpovídej pouze JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.2,
                 max_completion_tokens=400  # Reduced from 1000
             )
             
@@ -141,7 +140,6 @@ Vytvoř krátké shrnutí (max 100 slov):"""
                     {"role": "system", "content": "Právní expert. Stručné odpovědi."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
                 max_completion_tokens=150  # Very limited for cost efficiency
             )
             
