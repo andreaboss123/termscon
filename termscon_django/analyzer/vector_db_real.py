@@ -13,60 +13,181 @@ class RealVectorDB:
         self.civil_embeddings = None
         self.criminal_embeddings = None
         
+        # Attempt to load embeddings at initialization for better performance
+        print("Initializing RealVectorDB with embedded legal databases...")
+        self._initialize_databases()
+    
+    def _initialize_databases(self):
+        """Initialize databases at startup with comprehensive logging."""
+        print("=== Database Initialization ===")
+        
+        # Try to load Criminal Code (SQLite) - usually more reliable
+        criminal_success = self._load_criminal_code_embeddings()
+        
+        # Try to load Civil Code (ChromaDB) - may require more dependencies
+        civil_success = self._load_civil_code_embeddings()
+        
+        # Report initialization results
+        if criminal_success and civil_success:
+            print("✅ Full database initialization successful - both Civil and Criminal Code loaded")
+        elif criminal_success:
+            print("⚠️  Partial database initialization - Criminal Code loaded, Civil Code using fallback")
+        elif civil_success:
+            print("⚠️  Partial database initialization - Civil Code loaded, Criminal Code using fallback")
+        else:
+            print("❌ Database initialization failed - using fallback contexts for both")
+        
+        print("=== Database Initialization Complete ===")
+        
+        return criminal_success or civil_success
+        
     def _load_civil_code_embeddings(self):
-        """Load Civil Code embeddings from ChromaDB."""
+        """Load Civil Code embeddings from ChromaDB with robust error handling."""
         print("Attempting to load Civil Code embeddings from ChromaDB...")
         
         try:
-            import chromadb
-            from chromadb.config import Settings
-            
-            # Try to connect to the existing ChromaDB with explicit settings
-            client = chromadb.PersistentClient(
-                path=os.path.dirname(self.chroma_db_path),
-                settings=Settings(anonymized_telemetry=False)
-            )
-            collection = client.get_collection("civil_code")
-            
-            # Get all documents and embeddings
-            results = collection.get(include=['documents', 'embeddings', 'metadatas'])
-            
-            self.civil_embeddings = {
-                'documents': results['documents'],
-                'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
-                'metadatas': results['metadatas']
-            }
-            print(f"Successfully loaded Civil Code embeddings: {len(results['documents'])} documents")
-            return True
-        except Exception as e:
-            print(f"Error loading Civil Code embeddings: {e}")
-            # Try alternative connection method
+            # Check if ChromaDB is available
             try:
                 import chromadb
-                # Try with simpler client configuration
-                client = chromadb.PersistentClient(path=".")
+                print("ChromaDB module imported successfully")
+            except ImportError:
+                print("ChromaDB module not available - will use fallback legal context")
+                return False
+            
+            # Check if numpy is available
+            try:
+                import numpy as np
+                print("NumPy module imported successfully")
+            except ImportError:
+                print("NumPy module not available - cannot process embeddings")
+                return False
+            
+            # Test file accessibility
+            chroma_dir = os.path.dirname(self.chroma_db_path)
+            if not os.path.exists(chroma_dir):
+                print(f"ChromaDB directory not found: {chroma_dir}")
+                return False
+                
+            if not os.access(chroma_dir, os.R_OK):
+                print(f"ChromaDB directory not accessible: {chroma_dir}")
+                return False
+            
+            # Try multiple connection approaches
+            connection_attempts = [
+                # Attempt 1: Original path with settings
+                lambda: chromadb.PersistentClient(
+                    path=chroma_dir,
+                    settings=chromadb.config.Settings(anonymized_telemetry=False)
+                ),
+                # Attempt 2: Simple path connection
+                lambda: chromadb.PersistentClient(path=chroma_dir),
+                # Attempt 3: Current directory
+                lambda: chromadb.PersistentClient(path="."),
+                # Attempt 4: Direct database file
+                lambda: chromadb.PersistentClient(path=self.chroma_db_path)
+            ]
+            
+            client = None
+            for i, attempt in enumerate(connection_attempts, 1):
+                try:
+                    print(f"ChromaDB connection attempt {i}/4...")
+                    client = attempt()
+                    collections = client.list_collections()
+                    print(f"Connection successful, found {len(collections)} collections")
+                    break
+                except Exception as e:
+                    print(f"Connection attempt {i} failed: {e}")
+                    if i == len(connection_attempts):
+                        print("All ChromaDB connection attempts failed")
+                        return False
+                    continue
+            
+            if not client:
+                print("Failed to establish ChromaDB connection")
+                return False
+            
+            # Try to get the civil_code collection
+            try:
                 collection = client.get_collection("civil_code")
+                print("Successfully retrieved civil_code collection")
+            except Exception as e:
+                print(f"Failed to get civil_code collection: {e}")
+                # Try to list available collections
+                try:
+                    collections = client.list_collections()
+                    collection_names = [c.name for c in collections]
+                    print(f"Available collections: {collection_names}")
+                    if collection_names:
+                        # Try to use the first available collection
+                        collection = client.get_collection(collection_names[0])
+                        print(f"Using collection: {collection_names[0]}")
+                    else:
+                        print("No collections found in ChromaDB")
+                        return False
+                except Exception as e2:
+                    print(f"Failed to list collections: {e2}")
+                    return False
+            
+            # Get documents and embeddings
+            try:
+                print("Retrieving documents and embeddings...")
                 results = collection.get(include=['documents', 'embeddings', 'metadatas'])
+                
+                if not results['documents']:
+                    print("No documents found in collection")
+                    return False
+                
+                print(f"Retrieved {len(results['documents'])} documents")
                 
                 self.civil_embeddings = {
                     'documents': results['documents'],
                     'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
                     'metadatas': results['metadatas']
                 }
-                print(f"Successfully loaded Civil Code embeddings (alternative method): {len(results['documents'])} documents")
-                return True
-            except Exception as e2:
-                print(f"Error with alternative ChromaDB connection: {e2}")
-                print("Civil Code embeddings unavailable - will use fallback legal context")
+                
+                if self.civil_embeddings['embeddings'] is not None:
+                    print(f"Successfully loaded Civil Code embeddings: {len(results['documents'])} documents")
+                    return True
+                else:
+                    print("No embeddings found in collection")
+                    return False
+                    
+            except Exception as e:
+                print(f"Failed to retrieve collection data: {e}")
                 return False
+                
+        except Exception as e:
+            print(f"Unexpected error loading Civil Code embeddings: {e}")
+            print("Civil Code embeddings unavailable - will use fallback legal context")
+            return False
     
     def _load_criminal_code_embeddings(self):
-        """Load Criminal Code embeddings from SQLite."""
+        """Load Criminal Code embeddings from SQLite with robust error handling."""
         print("Attempting to load Criminal Code embeddings from SQLite...")
         
         try:
-            conn = sqlite3.connect(self.criminal_db_path)
+            # Test file accessibility first
+            if not os.path.exists(self.criminal_db_path):
+                print(f"Criminal Code database file not found: {self.criminal_db_path}")
+                return False
+                
+            if not os.access(self.criminal_db_path, os.R_OK):
+                print(f"Criminal Code database file not readable: {self.criminal_db_path}")
+                return False
+            
+            # Try to connect with timeout and proper error handling
+            conn = sqlite3.connect(self.criminal_db_path, timeout=30.0)
+            conn.execute("PRAGMA busy_timeout = 30000")  # 30 second timeout for busy database
             cursor = conn.cursor()
+            
+            # Test connection first with a simple query
+            cursor.execute("SELECT COUNT(*) FROM paragrafy")
+            paragrafy_count = cursor.fetchone()[0]
+            print(f"Found {paragrafy_count} paragraphs in Criminal Code database")
+            
+            cursor.execute("SELECT COUNT(*) FROM embeddings")
+            embeddings_count = cursor.fetchone()[0]
+            print(f"Found {embeddings_count} embeddings in Criminal Code database")
             
             # Get all paragraphs with embeddings using correct table structure
             cursor.execute("""
@@ -74,8 +195,10 @@ class RealVectorDB:
                 FROM paragrafy p 
                 JOIN embeddings e ON p.id = e.paragraf_id 
                 WHERE e.embedding IS NOT NULL
+                LIMIT 100
             """)
             rows = cursor.fetchall()
+            print(f"Retrieved {len(rows)} paragraph-embedding pairs")
             
             documents = []
             embeddings = []
@@ -84,24 +207,51 @@ class RealVectorDB:
             for row in rows:
                 paragraph_number, text, embedding_blob = row
                 if embedding_blob:
-                    # Convert blob to numpy array
-                    embedding = np.frombuffer(embedding_blob, dtype=np.float32)
-                    
-                    documents.append(text)
-                    embeddings.append(embedding)
-                    metadatas.append({'paragraph_number': paragraph_number})
+                    try:
+                        # Try importing numpy here to handle missing dependency
+                        import numpy as np
+                        # Convert blob to numpy array
+                        embedding = np.frombuffer(embedding_blob, dtype=np.float32)
+                        
+                        documents.append(text)
+                        embeddings.append(embedding)
+                        metadatas.append({'paragraph_number': paragraph_number})
+                    except ImportError:
+                        print("NumPy not available - cannot process embeddings")
+                        conn.close()
+                        return False
+                    except Exception as e:
+                        print(f"Error processing embedding for paragraph {paragraph_number}: {e}")
+                        continue
             
-            self.criminal_embeddings = {
-                'documents': documents,
-                'embeddings': np.array(embeddings) if embeddings else None,
-                'metadatas': metadatas
-            }
+            if documents and embeddings:
+                try:
+                    import numpy as np
+                    self.criminal_embeddings = {
+                        'documents': documents,
+                        'embeddings': np.array(embeddings),
+                        'metadatas': metadatas
+                    }
+                    print(f"Successfully loaded {len(documents)} Criminal Code embeddings")
+                    conn.close()
+                    return True
+                except ImportError:
+                    print("NumPy not available for final array creation")
+                    conn.close()
+                    return False
+            else:
+                print("No valid embeddings found in Criminal Code database")
+                conn.close()
+                return False
             
-            conn.close()
-            print(f"Successfully loaded Criminal Code embeddings: {len(documents)} documents")
-            return True
+        except sqlite3.OperationalError as e:
+            print(f"SQLite operational error loading Criminal Code embeddings: {e}")
+            return False
+        except sqlite3.DatabaseError as e:
+            print(f"SQLite database error loading Criminal Code embeddings: {e}")
+            return False
         except Exception as e:
-            print(f"Error loading Criminal Code embeddings: {e}")
+            print(f"Unexpected error loading Criminal Code embeddings: {e}")
             print("Criminal Code embeddings unavailable - will use fallback legal context")
             return False
     
@@ -202,13 +352,42 @@ class RealVectorDB:
             'criminal_code': criminal_results
         }
     
-    def get_system_status(self) -> Dict[str, Any]:
-        """Get the current status of the vector database system."""
-        return {
-            'civil_code_available': self.civil_embeddings is not None,
-            'criminal_code_available': self.criminal_embeddings is not None,
-            'using_fallback': self.civil_embeddings is None or self.criminal_embeddings is None
-        }
+    def check_dependencies(self) -> Dict[str, bool]:
+        """Check availability of required dependencies."""
+        deps = {}
+        
+        try:
+            import numpy as np
+            deps['numpy'] = True
+            print("✅ NumPy available")
+        except ImportError:
+            deps['numpy'] = False
+            print("❌ NumPy not available")
+        
+        try:
+            import chromadb
+            deps['chromadb'] = True
+            print("✅ ChromaDB available")
+        except ImportError:
+            deps['chromadb'] = False
+            print("❌ ChromaDB not available")
+        
+        try:
+            import sqlite3
+            deps['sqlite3'] = True
+            print("✅ SQLite3 available")
+        except ImportError:
+            deps['sqlite3'] = False
+            print("❌ SQLite3 not available")
+        
+        # Check file access
+        deps['criminal_db_file'] = os.path.exists(self.criminal_db_path) and os.access(self.criminal_db_path, os.R_OK)
+        deps['chroma_db_path'] = os.path.exists(os.path.dirname(self.chroma_db_path)) and os.access(os.path.dirname(self.chroma_db_path), os.R_OK)
+        
+        print(f"Criminal DB file accessible: {'✅' if deps['criminal_db_file'] else '❌'}")
+        print(f"ChromaDB path accessible: {'✅' if deps['chroma_db_path'] else '❌'}")
+        
+        return deps
     
     def _fallback_civil_context(self) -> List[Dict[str, Any]]:
         """Enhanced fallback Civil Code context when embeddings unavailable."""
