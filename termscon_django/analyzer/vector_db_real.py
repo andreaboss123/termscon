@@ -17,8 +17,13 @@ class RealVectorDB:
         """Load Civil Code embeddings from ChromaDB."""
         try:
             import chromadb
-            # Connect to the existing ChromaDB
-            client = chromadb.PersistentClient(path=os.path.dirname(self.chroma_db_path))
+            from chromadb.config import Settings
+            
+            # Try to connect to the existing ChromaDB with explicit settings
+            client = chromadb.PersistentClient(
+                path=os.path.dirname(self.chroma_db_path),
+                settings=Settings(anonymized_telemetry=False)
+            )
             collection = client.get_collection("civil_code")
             
             # Get all documents and embeddings
@@ -32,7 +37,23 @@ class RealVectorDB:
             return True
         except Exception as e:
             print(f"Error loading Civil Code embeddings: {e}")
-            return False
+            # Try alternative connection method
+            try:
+                import chromadb
+                # Try with simpler client configuration
+                client = chromadb.PersistentClient(path=".")
+                collection = client.get_collection("civil_code")
+                results = collection.get(include=['documents', 'embeddings', 'metadatas'])
+                
+                self.civil_embeddings = {
+                    'documents': results['documents'],
+                    'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
+                    'metadatas': results['metadatas']
+                }
+                return True
+            except Exception as e2:
+                print(f"Error with alternative ChromaDB connection: {e2}")
+                return False
     
     def _load_criminal_code_embeddings(self):
         """Load Criminal Code embeddings from SQLite."""
@@ -40,8 +61,13 @@ class RealVectorDB:
             conn = sqlite3.connect(self.criminal_db_path)
             cursor = conn.cursor()
             
-            # Get all paragraphs with embeddings
-            cursor.execute("SELECT paragraph_number, text, embedding FROM paragraphs WHERE embedding IS NOT NULL")
+            # Get all paragraphs with embeddings using correct table structure
+            cursor.execute("""
+                SELECT p.cislo, p.text, e.embedding 
+                FROM paragrafy p 
+                JOIN embeddings e ON p.id = e.paragraf_id 
+                WHERE e.embedding IS NOT NULL
+            """)
             rows = cursor.fetchall()
             
             documents = []
