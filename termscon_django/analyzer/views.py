@@ -15,40 +15,26 @@ sys.path.insert(0, '/home/runner/work/termscon/termscon')
 
 from .simple_schemas import AnalysisResult, OverallSummary, RiskLevel
 from .text_processing_simple import SimpleTextProcessor  
-from .gpt_analyzer_real import RealGPTAnalyzer
+from .vector_db_real import RealVectorDB
 from .models import AnalysisSession, ClauseAnalysisResult
+
+# Try to use optimized GPT analyzer first
+try:
+    from .gpt_analyzer_optimized import OptimizedGPTAnalyzer
+    USE_OPTIMIZED_GPT = True
+except ImportError:
+    from .gpt_analyzer_real import RealGPTAnalyzer
+    USE_OPTIMIZED_GPT = False
 
 
 class SimplifiedVectorDB:
     def __init__(self, chroma_db_path: str, criminal_db_path: str):
-        self.chroma_db_path = chroma_db_path
-        self.criminal_db_path = criminal_db_path
+        # Use the real vector DB for actual embedding search
+        self.real_db = RealVectorDB(chroma_db_path, criminal_db_path)
     
-    def get_legal_context(self, query_embedding: List[float], n_results: int = 3) -> dict:
-        """Mock legal context retrieval."""
-        civil_context = [
-            {
-                'text': '§1815 Občanského zákoníku: Smlouva je neplatná, pokud odporuje zákonu nebo dobrým mravům.',
-                'metadata': {'paragraph': '1815'}
-            },
-            {
-                'text': '§1826 Občanského zákoníku: Podmínky smlouvy musí být spravedlivé pro obě strany.',
-                'metadata': {'paragraph': '1826'}
-            }
-        ]
-        
-        criminal_context = [
-            {
-                'paragraph_number': '1',
-                'text': '§1 Trestního zákoníku: Čin je trestný, jen pokud jeho trestnost byla zákonem stanovena dříve.',
-                'similarity': 0.7
-            }
-        ]
-        
-        return {
-            'civil_code': civil_context,
-            'criminal_code': criminal_context
-        }
+    def get_legal_context(self, query_text: str, n_results: int = 3) -> dict:
+        """Get legal context using real embeddings."""
+        return self.real_db.get_legal_context(query_text, n_results)
 
 
 class TermsAnalyzer:
@@ -59,15 +45,25 @@ class TermsAnalyzer:
         self.vector_db = SimplifiedVectorDB(chroma_db_path, criminal_db_path)
         self.text_processor = SimpleTextProcessor()
         
-        # Try to use real GPT analyzer, fallback to mock if not configured
-        try:
-            self.gpt_analyzer = RealGPTAnalyzer()
-            print("✅ Using real OpenAI GPT analyzer")
-        except ValueError as e:
-            print(f"⚠️  OpenAI API not configured: {e}")
-            print("📝 Using mock analyzer instead. Set OPENAI_API_KEY environment variable to use real GPT analysis.")
-            from .gpt_analyzer_simple import SimpleGPTAnalyzer
-            self.gpt_analyzer = SimpleGPTAnalyzer()
+        # Try to use optimized GPT analyzer, fallback to regular, then mock
+        if USE_OPTIMIZED_GPT:
+            try:
+                self.gpt_analyzer = OptimizedGPTAnalyzer()
+                print("✅ Using optimized OpenAI GPT analyzer (cost-efficient)")
+            except ValueError as e:
+                print(f"⚠️  OpenAI API not configured: {e}")
+                print("📝 Using mock analyzer instead. Set OPENAI_API_KEY environment variable to use real GPT analysis.")
+                from .gpt_analyzer_simple import SimpleGPTAnalyzer
+                self.gpt_analyzer = SimpleGPTAnalyzer()
+        else:
+            try:
+                self.gpt_analyzer = RealGPTAnalyzer()
+                print("✅ Using standard OpenAI GPT analyzer")
+            except ValueError as e:
+                print(f"⚠️  OpenAI API not configured: {e}")
+                print("📝 Using mock analyzer instead. Set OPENAI_API_KEY environment variable to use real GPT analysis.")
+                from .gpt_analyzer_simple import SimpleGPTAnalyzer
+                self.gpt_analyzer = SimpleGPTAnalyzer()
     
     def analyze_text(self, text_content: str, filename: str = None) -> AnalysisResult:
         """Analyze terms and conditions text."""
@@ -88,13 +84,12 @@ class TermsAnalyzer:
         clause_analyses = []
         
         for i, clause in enumerate(clauses):
-            # Get mock embedding
-            clause_embedding = self.text_processor.get_text_embedding_mock(clause)
+            print(f"Analyzing clause {i+1}/{len(clauses)}")
             
-            # Get legal context
-            legal_context = self.vector_db.get_legal_context(clause_embedding)
+            # Get relevant legal context using semantic search on actual clause text
+            legal_context = self.vector_db.get_legal_context(clause, n_results=3)
             
-            # Analyze with GPT (mock)
+            # Analyze with GPT (optimized version)
             analysis = self.gpt_analyzer.analyze_clause(clause, legal_context, i + 1)
             clause_analyses.append(analysis)
         
