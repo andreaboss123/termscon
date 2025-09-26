@@ -167,21 +167,29 @@ class RealVectorDB:
                 
                 # Test that we can query the collection
                 try:
-                    # Try a simple query to validate the collection works
-                    results = collection.peek(limit=1)
-                    if results and 'documents' in results and results['documents']:
-                        print(f"Civil Code collection validated with {len(results['documents'])} document(s)")
-                    else:
-                        print("Civil Code collection appears empty")
-                        # Try to see if there are any documents at all
-                        count = collection.count()
-                        print(f"Collection count: {count}")
-                        if count == 0:
-                            print("Collection is empty - using fallback")
+                    # Test collection accessibility and detect embedding dimensions
+                    try:
+                        # First get a sample to detect embedding dimensions
+                        sample_result = collection.get(include=['embeddings'], limit=1)
+                        
+                        if sample_result['embeddings'] and len(sample_result['embeddings']) > 0:
+                            embedding_dimensions = len(sample_result['embeddings'][0])
+                            print(f"Detected embedding dimensions: {embedding_dimensions}")
+                            
+                            # Test query with dimension-compatible embedding
+                            test_embedding = self._create_query_embedding("test", embedding_dimensions)
+                            test_result = collection.query(
+                                query_embeddings=[test_embedding.tolist()],
+                                n_results=1
+                            )
+                            print("Collection query test successful")
+                        else:
+                            print("Collection has no embeddings")
                             return False
-                except Exception as query_error:
-                    print(f"Collection query test failed: {query_error}")
-                    return False
+                        
+                    except Exception as query_error:
+                        print(f"Collection query test failed: {query_error}")
+                        return False
                     
             except Exception as e:
                 print(f"Failed to get civil_code collection: {e}")
@@ -215,11 +223,12 @@ class RealVectorDB:
                 self.civil_embeddings = {
                     'documents': results['documents'],
                     'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
-                    'metadatas': results['metadatas']
+                    'metadatas': results['metadatas'],
+                    'embedding_dimensions': embedding_dimensions
                 }
                 
                 if self.civil_embeddings['embeddings'] is not None:
-                    print(f"Successfully loaded Civil Code embeddings: {len(results['documents'])} documents")
+                    print(f"✅ Civil Code loaded: {len(results['documents'])} documents ({embedding_dimensions}D embeddings)")
                     return True
                 else:
                     print("No embeddings found in collection")
