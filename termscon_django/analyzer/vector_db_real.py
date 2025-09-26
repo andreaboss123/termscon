@@ -94,19 +94,25 @@ class RealVectorDB:
                 print(f"ChromaDB directory not accessible: {chroma_dir}")
                 return False
             
-            # Try multiple connection approaches
+            # Try multiple connection approaches with better error handling
             connection_attempts = [
-                # Attempt 1: Original path with settings
+                # Attempt 1: Persistent client with minimal settings (most compatible)
+                lambda: chromadb.PersistentClient(path=chroma_dir),
+                # Attempt 2: Try with anonymized telemetry disabled
                 lambda: chromadb.PersistentClient(
                     path=chroma_dir,
                     settings=chromadb.config.Settings(anonymized_telemetry=False)
                 ),
-                # Attempt 2: Simple path connection
-                lambda: chromadb.PersistentClient(path=chroma_dir),
-                # Attempt 3: Current directory
-                lambda: chromadb.PersistentClient(path="."),
-                # Attempt 4: Direct database file
-                lambda: chromadb.PersistentClient(path=self.chroma_db_path)
+                # Attempt 3: Try different directory paths
+                lambda: chromadb.PersistentClient(path=os.path.abspath(".")),
+                # Attempt 4: Try creating new client with allow_reset
+                lambda: chromadb.PersistentClient(
+                    path=chroma_dir,
+                    settings=chromadb.config.Settings(
+                        anonymized_telemetry=False,
+                        allow_reset=True
+                    )
+                )
             ]
             
             client = None
@@ -114,11 +120,37 @@ class RealVectorDB:
                 try:
                     print(f"ChromaDB connection attempt {i}/4...")
                     client = attempt()
-                    collections = client.list_collections()
-                    print(f"Connection successful, found {len(collections)} collections")
-                    break
+                    
+                    # Test the connection by trying to list collections
+                    try:
+                        collections = client.list_collections()
+                        print(f"Connection successful, found {len(collections)} collections")
+                        break
+                    except Exception as list_error:
+                        print(f"Connection established but collection listing failed: {list_error}")
+                        # Try to handle common schema issues
+                        if "no such column" in str(list_error):
+                            print("Database schema incompatibility detected - trying to reset client")
+                            try:
+                                client.reset()
+                                collections = client.list_collections()
+                                print(f"Database reset successful, found {len(collections)} collections")
+                                break
+                            except:
+                                print("Database reset failed, trying next connection method")
+                                continue
+                        else:
+                            continue
+                            
                 except Exception as e:
                     print(f"Connection attempt {i} failed: {e}")
+                    
+                    # Handle specific error cases
+                    if "An instance of Chroma already exists" in str(e):
+                        print("ChromaDB instance conflict detected - this may resolve on retry")
+                    elif "no such column" in str(e):
+                        print("Database schema incompatibility - trying next method")
+                    
                     if i == len(connection_attempts):
                         print("All ChromaDB connection attempts failed")
                         return False
@@ -128,10 +160,29 @@ class RealVectorDB:
                 print("Failed to establish ChromaDB connection")
                 return False
             
-            # Try to get the civil_code collection
+            # Try to get the civil_code collection with better error handling
             try:
                 collection = client.get_collection("civil_code")
                 print("Successfully retrieved civil_code collection")
+                
+                # Test that we can query the collection
+                try:
+                    # Try a simple query to validate the collection works
+                    results = collection.peek(limit=1)
+                    if results and 'documents' in results and results['documents']:
+                        print(f"Civil Code collection validated with {len(results['documents'])} document(s)")
+                    else:
+                        print("Civil Code collection appears empty")
+                        # Try to see if there are any documents at all
+                        count = collection.count()
+                        print(f"Collection count: {count}")
+                        if count == 0:
+                            print("Collection is empty - using fallback")
+                            return False
+                except Exception as query_error:
+                    print(f"Collection query test failed: {query_error}")
+                    return False
+                    
             except Exception as e:
                 print(f"Failed to get civil_code collection: {e}")
                 # Try to list available collections
