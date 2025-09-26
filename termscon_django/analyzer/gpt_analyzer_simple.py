@@ -9,7 +9,7 @@ class SimpleGPTAnalyzer:
     
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY', 'demo_key')
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-5')
         self.use_mock = self.api_key == 'demo_key_placeholder' or self.api_key == 'demo_key'
     
     def analyze_clause(self, clause_text: str, legal_context: Dict[str, List[Dict[str, Any]]], clause_id: int) -> ClauseAnalysis:

@@ -16,8 +16,9 @@ The Django implementation provides a complete web application with database pers
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure OpenAI API (optional but recommended)
+# Configure OpenAI GPT-5 API (optional but recommended)
 echo "OPENAI_API_KEY=sk-your-api-key-here" > .env
+echo "OPENAI_MODEL=gpt-5" >> .env
 
 # Set up database
 python manage.py migrate
@@ -33,7 +34,7 @@ python manage.py runserver
 - 📋 **Analysis History**: Browse and review past analyses
 - 🎯 **Advanced UI**: Clean, responsive web interface
 - ⚖️ **Legal Integration**: Czech Civil Code and Criminal Code analysis
-- 🤖 **Real GPT Analysis**: OpenAI API integration for sophisticated legal analysis
+- 🤖 **Real GPT Analysis**: OpenAI GPT-5 API integration for sophisticated legal analysis
 - 🔒 **Production Ready**: Django framework with security features
 
 See [DJANGO_README.md](DJANGO_README.md) for detailed Django-specific documentation.
@@ -55,7 +56,7 @@ python web_app.py
 
 ⚖️ **Legal Framework Integration**: Leverages pre-embedded Czech Civil Code and Criminal Code for legal context
 
-🤖 **AI-Powered Assessment**: Uses OpenAI GPT API (with fallback mock analysis) for sophisticated risk assessment and legal conflict detection
+🤖 **AI-Powered Assessment**: Uses OpenAI GPT-5 API (with fallback mock analysis) for sophisticated risk assessment and legal conflict detection
 
 📊 **Interactive Dashboard**: User-friendly web interface with color-coded risk levels and detailed explanations
 
@@ -152,10 +153,10 @@ The Django version includes persistent storage:
 
 The application now supports real OpenAI GPT analysis:
 
-- **Setup**: Add `OPENAI_API_KEY=sk-your-key` to `.env` file
-- **Models**: Supports GPT-4, GPT-3.5-turbo, and other OpenAI models
+- **Setup**: Add `OPENAI_API_KEY=sk-your-key` and `OPENAI_MODEL=gpt-5` to `.env` file
+- **Models**: Supports GPT-5 (default), GPT-4, GPT-3.5-turbo, and other OpenAI models
 - **Fallback**: Automatically uses mock analysis if API key not configured
-- **Cost**: Approximately $0.01-0.50 per document depending on size
+- **Cost**: Approximately $0.02-0.75 per document depending on size and model
 
 See [OPENAI_INTEGRATION.md](OPENAI_INTEGRATION.md) for detailed setup instructions.
 
@@ -180,7 +181,7 @@ uvicorn web_app:app --host 0.0.0.0 --port 8000
 ```
 
 For production use:
-1. Add real OpenAI API integration (now supported - see OPENAI_INTEGRATION.md)
+1. Add real OpenAI GPT-5 API integration (now supported - see OPENAI_INTEGRATION.md)
 2. Enable full document format support (PDF, DOCX)
 3. Implement proper vector similarity search
 4. Add user authentication and session management

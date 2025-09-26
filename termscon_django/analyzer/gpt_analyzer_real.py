@@ -9,7 +9,7 @@ class RealGPTAnalyzer:
     
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY')
-        self.model = os.getenv('OPENAI_MODEL', 'gpt-4')
+        self.model = os.getenv('OPENAI_MODEL', 'gpt-5')
         
         if not self.api_key or self.api_key in ['demo_key', 'demo_key_placeholder', 'your_gpt5_api_key_here']:
             raise ValueError("Please set a valid OPENAI_API_KEY in your environment variables or .env file")

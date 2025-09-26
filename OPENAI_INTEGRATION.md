@@ -18,16 +18,17 @@ Create a `.env` file in the project root or set environment variables:
 ```bash
 # Option 1: Create .env file
 echo "OPENAI_API_KEY=sk-your-actual-api-key-here" > .env
-echo "OPENAI_MODEL=gpt-4" >> .env
+echo "OPENAI_MODEL=gpt-5" >> .env
 
 # Option 2: Export environment variables
 export OPENAI_API_KEY=sk-your-actual-api-key-here
-export OPENAI_MODEL=gpt-4
+export OPENAI_MODEL=gpt-5
 ```
 
 ### 3. Available Models
 
-- `gpt-4` (recommended for best analysis quality)
+- `gpt-5` (recommended - most advanced model for best analysis quality)
+- `gpt-4` (high quality alternative)
 - `gpt-3.5-turbo` (faster and cheaper alternative)
 - `gpt-4-turbo` (if available in your region)
 
@@ -58,10 +59,10 @@ export OPENAI_MODEL=gpt-4
 
 ### API Usage and Costs
 
-**Estimated Costs (GPT-4):**
-- Small T&C (1-5 clauses): ~$0.01-0.05
-- Medium T&C (5-15 clauses): ~$0.05-0.15  
-- Large T&C (15+ clauses): ~$0.15-0.50
+**Estimated Costs (GPT-5):**
+- Small T&C (1-5 clauses): ~$0.02-0.08
+- Medium T&C (5-15 clauses): ~$0.08-0.25  
+- Large T&C (15+ clauses): ~$0.25-0.75
 
 **Token Usage:**
 - Input: ~500-1000 tokens per clause (context + prompt)
