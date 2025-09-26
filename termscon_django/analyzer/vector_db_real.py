@@ -418,8 +418,9 @@ class RealVectorDB:
         if self.criminal_embeddings['embeddings'] is None:
             return self._fallback_criminal_context()
         
-        # Create query embedding  
-        query_embedding = self._create_query_embedding(query_text)
+        # Create query embedding with matching dimensions
+        embedding_dims = self.civil_embeddings.get('embedding_dimensions', 384)
+        query_embedding = self._create_query_embedding(query_text, embedding_dims)
         
         # Calculate similarities
         similarities = []
