@@ -15,6 +15,8 @@ class RealVectorDB:
         
     def _load_civil_code_embeddings(self):
         """Load Civil Code embeddings from ChromaDB."""
+        print("Attempting to load Civil Code embeddings from ChromaDB...")
+        
         try:
             import chromadb
             from chromadb.config import Settings
@@ -34,6 +36,7 @@ class RealVectorDB:
                 'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
                 'metadatas': results['metadatas']
             }
+            print(f"Successfully loaded Civil Code embeddings: {len(results['documents'])} documents")
             return True
         except Exception as e:
             print(f"Error loading Civil Code embeddings: {e}")
@@ -50,13 +53,17 @@ class RealVectorDB:
                     'embeddings': np.array(results['embeddings']) if results['embeddings'] else None,
                     'metadatas': results['metadatas']
                 }
+                print(f"Successfully loaded Civil Code embeddings (alternative method): {len(results['documents'])} documents")
                 return True
             except Exception as e2:
                 print(f"Error with alternative ChromaDB connection: {e2}")
+                print("Civil Code embeddings unavailable - will use fallback legal context")
                 return False
     
     def _load_criminal_code_embeddings(self):
         """Load Criminal Code embeddings from SQLite."""
+        print("Attempting to load Criminal Code embeddings from SQLite...")
+        
         try:
             conn = sqlite3.connect(self.criminal_db_path)
             cursor = conn.cursor()
@@ -91,9 +98,11 @@ class RealVectorDB:
             }
             
             conn.close()
+            print(f"Successfully loaded Criminal Code embeddings: {len(documents)} documents")
             return True
         except Exception as e:
             print(f"Error loading Criminal Code embeddings: {e}")
+            print("Criminal Code embeddings unavailable - will use fallback legal context")
             return False
     
     def _create_query_embedding(self, query_text: str) -> np.ndarray:
@@ -177,35 +186,68 @@ class RealVectorDB:
     
     def get_legal_context(self, query_text: str, n_results: int = 3) -> Dict[str, List[Dict[str, Any]]]:
         """Get relevant legal context from both Civil and Criminal Code."""
+        print(f"Getting legal context for query: {query_text[:50]}...")
+        
         civil_results = self.search_civil_code(query_text, n_results)
         criminal_results = self.search_criminal_code(query_text, max(1, n_results // 2))
+        
+        # Add status information
+        civil_status = "database" if self.civil_embeddings else "fallback"
+        criminal_status = "database" if self.criminal_embeddings else "fallback"
+        
+        print(f"Legal context retrieved - Civil: {len(civil_results)} results ({civil_status}), Criminal: {len(criminal_results)} results ({criminal_status})")
         
         return {
             'civil_code': civil_results,
             'criminal_code': criminal_results
         }
     
+    def get_system_status(self) -> Dict[str, Any]:
+        """Get the current status of the vector database system."""
+        return {
+            'civil_code_available': self.civil_embeddings is not None,
+            'criminal_code_available': self.criminal_embeddings is not None,
+            'using_fallback': self.civil_embeddings is None or self.criminal_embeddings is None
+        }
+    
     def _fallback_civil_context(self) -> List[Dict[str, Any]]:
-        """Fallback Civil Code context when embeddings unavailable."""
+        """Enhanced fallback Civil Code context when embeddings unavailable."""
+        print("Using fallback Civil Code context (database unavailable)")
         return [
             {
                 'text': '§1815 Občanského zákoníku: Smlouva je neplatná, pokud odporuje zákonu nebo dobrým mravům.',
                 'metadata': {'paragraph': '1815'},
-                'similarity': 0.5
+                'similarity': 0.7
             },
             {
                 'text': '§1826 Občanského zákoníku: Podmínky smlouvy musí být spravedlivé pro obě strany.',
                 'metadata': {'paragraph': '1826'},
+                'similarity': 0.6
+            },
+            {
+                'text': '§1793 Občanského zákoníku: Spotřebitelské smlouvy podléhají zvláštní ochraně.',
+                'metadata': {'paragraph': '1793'},
+                'similarity': 0.6
+            },
+            {
+                'text': '§1796 Občanského zákoníku: Neplatné jsou ustanovení omezující práva spotřebitele.',
+                'metadata': {'paragraph': '1796'},
                 'similarity': 0.5
             }
         ]
     
     def _fallback_criminal_context(self) -> List[Dict[str, Any]]:
-        """Fallback Criminal Code context when embeddings unavailable."""
+        """Enhanced fallback Criminal Code context when embeddings unavailable."""
+        print("Using fallback Criminal Code context (database unavailable)")
         return [
             {
                 'paragraph_number': '1',
                 'text': '§1 Trestního zákoníku: Čin je trestný, jen pokud jeho trestnost byla zákonem stanovena dříve.',
+                'similarity': 0.6
+            },
+            {
+                'paragraph_number': '209',
+                'text': '§209 Trestního zákoníku: Podvod - kdo jiného uvede v omyl a způsobí mu škodu.',
                 'similarity': 0.5
             }
         ]
